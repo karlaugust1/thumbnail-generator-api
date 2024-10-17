@@ -1,8 +1,9 @@
 import os
 import boto3
+from botocore.client import Config
 import uuid
 from datetime import datetime
-
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Request
 from botocore.exceptions import ClientError
 
@@ -14,14 +15,29 @@ region = "us-east-2"
 
 app = FastAPI()
 
-s3 = boto3.client('s3',
-         aws_access_key_id=ACCESS_ID,
-         aws_secret_access_key= ACCESS_KEY)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+s3 = boto3.client(
+    's3',
+    region_name=region,
+    aws_access_key_id=ACCESS_ID,
+    aws_secret_access_key=ACCESS_KEY,
+    config=Config(
+        signature_version='s3v4',
+        region_name=region
+    )
+)
 
 dynamodb = boto3.resource('dynamodb',
-        aws_access_key_id=ACCESS_ID,
-        aws_secret_access_key=ACCESS_KEY,
-        region_name=region
+    aws_access_key_id=ACCESS_ID,
+    aws_secret_access_key=ACCESS_KEY,
+    region_name=region
 )
 
 @app.post('/thumbnails/presigned-urls')
@@ -30,7 +46,7 @@ async def generate_presigned_url(request: Request):
         payload = await request.json()
 
         url = s3.generate_presigned_url(
-            ClientMethod='get_object',
+            ClientMethod='put_object',
             Params={
                 'Bucket': bucket_name,
                 'Key': payload['file_name']
@@ -99,8 +115,6 @@ async def update_thumbnail(id, request: Request):
             UpdateExpression=UpdateExpression,
             ExpressionAttributeValues=ExpressionAttributeValues
         )
-
-        return item
     except ClientError as e:
         print(e)
         raise e
