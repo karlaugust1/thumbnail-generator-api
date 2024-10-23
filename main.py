@@ -49,7 +49,7 @@ async def generate_presigned_url(request: Request):
             ClientMethod='put_object',
             Params={
                 'Bucket': bucket_name,
-                'Key': payload['file_name']
+                'Key': str(payload['file_name']).replace(" ", "")
             },
             ExpiresIn=3600
         )
@@ -121,10 +121,8 @@ async def update_thumbnail(id, request: Request):
     return None
 
 @app.delete('/thumbnails/{id}')
-async def delete_thumbnail(id, request: Request):
+async def delete_thumbnail(id):
     try:
-        payload = await request.json()
-
         dynamodb.Table(dynamo_table).delete_item(
             Key={
                 'id': str(id)
